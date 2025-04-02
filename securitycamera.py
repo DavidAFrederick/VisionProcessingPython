@@ -50,19 +50,32 @@ class SecurityCamera():
             print ("CCW")
 
         start_time = time.time()
-        allowed_duration = 1.0
         run_time = 0
-        time.sleep(0.4)
+        allowed_duration = 12.0
 
-        while (self.monitor_magnetic_limit_switch()) and (run_time < allowed_duration):
-            run_time = time.time() - start_time
-            print(f"Duration: {run_time:.2f}  Limit_switch: {self.monitor_magnetic_limit_switch()}  dir: {direction} " )
+        time.sleep(0.5)
+        limit_switch_valid = self.monitor_magnetic_limit_switch()
+        time_not_exceeded = run_time < allowed_duration
 
+        while (limit_switch_valid) and (time_not_exceeded):
             if (direction == "CW"):
                 pwm_motor.start(8.4) # CW from top   
             if (direction == "CCW"):
                 pwm_motor.start(5.6)    # CCV from top
+            
+            print(f"Duration: {run_time:.2f}  Limit_switch: {self.monitor_magnetic_limit_switch()}  dir: {direction} " )
+
             time.sleep(0.1)
+            run_time = time.time() - start_time
+            limit_switch_valid = self.monitor_magnetic_limit_switch()
+            time_not_exceeded = run_time < allowed_duration
+
+        if (not limit_switch_valid):
+            print ("Limit switch detected")
+
+        if (not time_not_exceeded):
+                print ("Duration exceeded")
+
 
 
         pwm_motor.ChangeDutyCycle(6.6)   
@@ -88,7 +101,7 @@ def main():
     print("This is the main function.")
     security_camera = SecurityCamera()
     print("Monitor: ", security_camera.monitor_magnetic_limit_switch())
-    security_camera.turn_heading_motor_until_limit("CCW")
+    security_camera.turn_heading_motor_until_limit("CW")
     security_camera.cleanup_GPIO()
 
 
