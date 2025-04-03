@@ -1,12 +1,18 @@
 # import numpy
+import threading
 import RPi.GPIO as GPIO
 import time
+from sshkeyboard import listen_keyboard, stop_listening
 
 
         # Define the GPIO pin number in BCM terms
         # This is physical Pin 7 on the left side just above the ground
 MAGNETIC_SENSOR_PIN = 4
 HEADING_MOTOR_PIN = 2
+
+global_key = "-"
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 class SecurityCamera():
 
@@ -37,21 +43,18 @@ class SecurityCamera():
         mag_switch = GPIO.input(MAGNETIC_SENSOR_PIN)
         return mag_switch
     
-    def turn_heading_motor_until_limit(self, direction : str):
+    def turn_heading_motor_until_limit(self, direction : str, allowed_duration = 12):
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(HEADING_MOTOR_PIN, GPIO.OUT)
         pwm_motor = GPIO.PWM(HEADING_MOTOR_PIN, 50)  # channel=2 frequency=50Hz
 
         if (direction == "CW"):
             pwm_motor.start(8.4) # CW from top   
-            print ("CW")
         if (direction == "CCW"):
             pwm_motor.start(5.6)    # CCV from top
-            print ("CCW")
 
         start_time = time.time()
         run_time = 0
-        allowed_duration = 12.0
 
         time.sleep(0.5)
         limit_switch_valid = self.monitor_magnetic_limit_switch()
@@ -59,11 +62,11 @@ class SecurityCamera():
 
         while (limit_switch_valid) and (time_not_exceeded):
             if (direction == "CW"):
-                pwm_motor.start(8.4) # CW from top   
+                pwm_motor.start(8.4)    # CW from top   
             if (direction == "CCW"):
                 pwm_motor.start(5.6)    # CCV from top
             
-            print(f"Duration: {run_time:.2f}  Limit_switch: {self.monitor_magnetic_limit_switch()}  dir: {direction} " )
+            # print(f"Duration: {run_time:.2f}  Limit_switch: {self.monitor_magnetic_limit_switch()}  dir: {direction} " )
 
             time.sleep(0.1)
             run_time = time.time() - start_time
@@ -71,42 +74,58 @@ class SecurityCamera():
             time_not_exceeded = run_time < allowed_duration
 
         if (not limit_switch_valid):
-            print ("Limit switch detected")
+            print ("Motion Limit detected")
 
         if (not time_not_exceeded):
-                print ("Duration exceeded")
-
-
+                print ("Time Complete")
 
         pwm_motor.ChangeDutyCycle(6.6)   
         pwm_motor.stop()
-        #  dc = 5.6 = counter clockwise
-        
 
-
-        pwm_motor.ChangeDutyCycle(6.6)   
-        pwm_motor.stop()
-        #  dc = 5.6 = counter clockwise
-        
-
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 
     def cleanup_GPIO(self):
         # led.cleanup()
         GPIO.cleanup()
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
+def read_key_press(key):
+    global global_key
+    global_key = key
+    stop_listening()
 
-# main.py
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def main():
-    print("This is the main function.")
     security_camera = SecurityCamera()
-    print("Monitor: ", security_camera.monitor_magnetic_limit_switch())
-    security_camera.turn_heading_motor_until_limit("CW")
+    done = False
+
+    print ("=================================")
+    print ("Move Left for one second  = l ")
+    print ("Move Right for one second = r ")
+    print ("Quit = q")
+
+    while (not done):
+        listen_keyboard(on_press = read_key_press,)
+
+        if (global_key == "l"):
+            print ("Move Left for 1 second")
+            security_camera.turn_heading_motor_until_limit("CCW", 1)
+
+        if (global_key == "r"):
+            print ("Move Right for 1 second")
+            security_camera.turn_heading_motor_until_limit("CW", 1)
+
+        if (global_key == "q"):
+            done = True
+
     security_camera.cleanup_GPIO()
-
-
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 if __name__ == "__main__":
     main()
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
 
 
