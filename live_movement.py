@@ -17,7 +17,7 @@ while cap.isOpened():
     for contour in contours:
         (x, y, w, h) = cv2.boundingRect(contour)
 
-        if cv2.contourArea(contour) < 900:
+        if cv2.contourArea(contour) < 600:
             continue
         cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
         cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,

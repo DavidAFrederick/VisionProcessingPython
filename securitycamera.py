@@ -95,17 +95,23 @@ def read_key_press(key):
     global_key = key
     stop_listening()
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-def main():
-    security_camera = SecurityCamera()
-    done = False
-
+def print_header():
     print ("=================================")
     print ("Move Left for one second  = l ")
     print ("Move Right for one second = r ")
     print ("Quit = q")
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def main():
+    security_camera = SecurityCamera()
+    done = False
+
+
+
     while (not done):
+
+        print_header()
+        
         listen_keyboard(on_press = read_key_press,)
 
         if (global_key == "l"):
