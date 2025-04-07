@@ -8,27 +8,56 @@ ret, frame2 = cap.read()
 
 while cap.isOpened():
     diff = cv2.absdiff(frame1, frame2)
+
+
+    # framediff = cv2.resize(diff, (1000,540))
+    # cv2.imshow("diff", framediff)
+    
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5,5), 0)
     _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
     dilated = cv2.dilate(thresh, None, iterations=3)
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
+    # print(":",len(contours))
+
+    thresholdsize = 600
     for contour in contours:
         (x, y, w, h) = cv2.boundingRect(contour)
 
-        if cv2.contourArea(contour) < 600:
+        
+
+        # if (len(contours) > 3 ):
+
+        #     pass
+        # if cv2.contourArea(contour) > thresholdsize:
+        #     print ("|",cv2.contourArea(contour),"|" )
+
+        if cv2.contourArea(contour) < thresholdsize:
             continue
-        cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
-                    1, (0, 0, 255), 3)
+
+        h2 = int(h/2)
+        w2 = int(w/2)
+        x_start = x + w2
+        y_start = y + h2
+        x_end   = x_start + 4
+        y_end   = y_start + 4
+
+        # cv2.rectangle (frame1, (x,y),               (x+w, y+h),     (0, 255, 0), 2)  #  Original
+        cv2.rectangle (frame1, (x,y),   (x+w, y+h),     (0, 255, 0), 2)
+        # cv2.rectangle (frame1, (x_start,y_start),(x_end, y_end), (0, 0, 255), 2)
+        # cv2.rectangle   (frame1, ( x+(w/2), y+(h/2)), (x+w-(w/2), y+h-(h/2) ), (255, 0, 0), 2)
+        ##cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+        ##            1, (0, 0, 255), 3)
 
     frame3 = cv2.resize(frame1, (960,540))
     cv2.imshow("feed", frame3)
     frame1 = frame2
     ret, frame2 = cap.read()
+    print("Shape: ", frame2.shape)    # (H,W, Depth)
 
-    if cv2.waitKey(1) == ord("q"):
+    # if cv2.waitKey(1) == ord("q"):        # origina
+    if (cv2.waitKey(1) & 0xFF) == ord('q'):
         break
 
 cv2.destroyAllWindows()

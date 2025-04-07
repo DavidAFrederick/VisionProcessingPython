@@ -114,11 +114,11 @@ def main():
         
         listen_keyboard(on_press = read_key_press,)
 
-        if (global_key == "l"):
+        if (global_key == "l") or (global_key == "left"):
             print ("Move Left for 1 second")
             security_camera.turn_heading_motor_until_limit("CCW", 1)
 
-        if (global_key == "r"):
+        if (global_key == "r") or (global_key == "right"):
             print ("Move Right for 1 second")
             security_camera.turn_heading_motor_until_limit("CW", 1)
 
