@@ -7,20 +7,42 @@ ret, frame1 = cap.read()
 ret, frame2 = cap.read()
 
 while cap.isOpened():
-    diff = cv2.absdiff(frame1, frame2)
+
+# Creating a Mask or Region of Interest (ROI)
+#  1080H x 1920W
+
+    ret, frame2 = cap.read()
+
+    h, w, c = frame2.shape
+    # blank_image2 = 255 * np.ones(shape=(h, w, c), dtype=np.uint8)
+    blank_image2 = 255 * np.zeros(shape=(h, w, c), dtype=np.uint8)
+    # cv2.rectangle(img, pt1, pt2, color[, thickness[, lineType[, shift]]])
+    # cv2.rectangle(blank_image2,(0,300), (1919,700), (255, 255, 255))
+    cv2.rectangle(blank_image2, (0,300), (1919,700), 255, -1)
+
+    graymask = cv2.cvtColor(blank_image2, cv2.COLOR_BGR2GRAY)
 
 
-    # framediff = cv2.resize(diff, (1000,540))
-    # cv2.imshow("diff", framediff)
-    
+    # Apply the mask
+    masked_image = cv2.bitwise_and(frame2, frame2, mask=graymask)
+
+
+    # blank_image3 = cv2.resize(masked_image, (960,540))
+    # cv2.imshow("Maskded:", blank_image3)
+
+    frame2 = masked_image
+
+    diff = cv2.absdiff(frame1, frame2)    
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+
     blur = cv2.GaussianBlur(gray, (5,5), 0)
     _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
     dilated = cv2.dilate(thresh, None, iterations=3)
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # print(":",len(contours))
-
+    print(contours)
+# 
     thresholdsize = 600
     for contour in contours:
         (x, y, w, h) = cv2.boundingRect(contour)
@@ -51,10 +73,9 @@ while cap.isOpened():
         ##            1, (0, 0, 255), 3)
 
     frame3 = cv2.resize(frame1, (960,540))
-    cv2.imshow("feed", frame3)
+    cv2.imshow("feed", frame3)         #<<<<<<<<
+    # cv2.imshow("Blank:", blank_image2)
     frame1 = frame2
-    ret, frame2 = cap.read()
-    print("Shape: ", frame2.shape)    # (H,W, Depth)
 
     # if cv2.waitKey(1) == ord("q"):        # origina
     if (cv2.waitKey(1) & 0xFF) == ord('q'):
