@@ -29,14 +29,15 @@ def print_header():
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def main():
     done = False
-
-
-
     while (not done):
-
         print_header()
-        
         listen_keyboard(on_press = read_key_press,)
+
+        if (global_key == "up"):
+            print ("Up key pressed")
+
+        if (global_key == "down"):
+            print ("Down key pressed")
 
         if (global_key == "l") or (global_key == "left"):
             print ("Move Left for 1 second")

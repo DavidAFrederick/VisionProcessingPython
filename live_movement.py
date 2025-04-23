@@ -6,6 +6,9 @@ cap = cv2.VideoCapture(0)
 ret, frame1 = cap.read()
 ret, frame2 = cap.read()
 
+mask_enabled = True
+mask_enabled = False
+
 while cap.isOpened():
 
 # Creating a Mask or Region of Interest (ROI)
@@ -13,24 +16,31 @@ while cap.isOpened():
 
     ret, frame2 = cap.read()
 
-    h, w, c = frame2.shape
-    # blank_image2 = 255 * np.ones(shape=(h, w, c), dtype=np.uint8)
-    blank_image2 = 255 * np.zeros(shape=(h, w, c), dtype=np.uint8)
-    # cv2.rectangle(img, pt1, pt2, color[, thickness[, lineType[, shift]]])
-    # cv2.rectangle(blank_image2,(0,300), (1919,700), (255, 255, 255))
-    cv2.rectangle(blank_image2, (0,300), (1919,700), 255, -1)
+    if (mask_enabled):
 
-    graymask = cv2.cvtColor(blank_image2, cv2.COLOR_BGR2GRAY)
+        ## Get the shape of the image from the camera
+        h, w, c = frame2.shape
 
+        ## Create a blank image of the same size
+        blank_image2 = 255 * np.zeros(shape=(h, w, c), dtype=np.uint8)
+        # blank_image2 = 255 * np.ones(shape=(h, w, c), dtype=np.uint8)
+        # cv2.rectangle(img, pt1, pt2, color[, thickness[, lineType[, shift]]])
+        # cv2.rectangle(blank_image2,(0,300), (1919,700), (255, 255, 255))
 
-    # Apply the mask
-    masked_image = cv2.bitwise_and(frame2, frame2, mask=graymask)
+        ## Draw a rectangle on the image
+        cv2.rectangle(blank_image2, (0,300), (1919,700), 255, -1)
+        
+        ## Make the image a gray scale
+        graymask = cv2.cvtColor(blank_image2, cv2.COLOR_BGR2GRAY)
 
+        ## Apply the mask
+        masked_image = cv2.bitwise_and(frame2, frame2, mask=graymask)
 
-    # blank_image3 = cv2.resize(masked_image, (960,540))
-    # cv2.imshow("Maskded:", blank_image3)
+        # blank_image3 = cv2.resize(masked_image, (960,540))
+        # cv2.imshow("Maskded:", blank_image3)
 
-    frame2 = masked_image
+        frame2 = masked_image
+        # print ("Masked")
 
     diff = cv2.absdiff(frame1, frame2)    
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
@@ -41,7 +51,7 @@ while cap.isOpened():
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # print(":",len(contours))
-    print(contours)
+    # print(contours)
 # 
     thresholdsize = 600
     for contour in contours:
