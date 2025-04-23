@@ -8,14 +8,17 @@ from gpiod.line import Direction, Value
 
 # Constants
 CHIP = "/dev/gpiochip0"
-LINE_OFFSET = 18 # 5  # 18  # GPIO pin number (BCM numbering, e.g., GPIO18)
+PWM_LINE_OFFSET = 15 # 18 is busy  # GPIO pin number (BCM numbering, e.g., GPIO18)
+SW_LINE_OFFSET = 14
+LED_LINE_OFFSET = 27
+
 PERIOD = 0.02  # 20ms period typical for servo
 MIN_PULSE = 0.0005  # 0.5 ms (0 degrees)
 MAX_PULSE = 0.0025  # 2.5 ms (180 degrees)
 
-# PERIOD = 5  # 20ms period typical for servo  ##### ADDED
+# PERIOD = 2  # 20ms period typical for servo  ##### ADDED
 # MIN_PULSE = 0.5  # 0.5 ms (0 degrees)
-# MAX_PULSE = 2.5  # 2.5 ms (180 degrees)
+# MAX_PULSE = 1.5  # 2.5 ms (180 degrees)
 
 # Helper: Map angle to pulse width
 def angle_to_pulse(angle):
@@ -25,14 +28,14 @@ def angle_to_pulse(angle):
 chip = gpiod.Chip(CHIP)
 
 
-line = chip.get_line_info(LINE_OFFSET)
-# line = chip.get_line(LINE_OFFSET)
+line = chip.get_line_info(PWM_LINE_OFFSET)
+# line = chip.get_line(PWM_LINE_OFFSET)
 
 value_str = {Value.ACTIVE: "Active", Value.INACTIVE: "Inactive"}
 value = Value.ACTIVE
 
 # line.request(consumer="servo", type=gpiod.LINE_REQ_DIR_OUT)
-line = gpiod.request_lines( CHIP,  config={LINE_OFFSET: gpiod.LineSettings(direction=Direction.OUTPUT, output_value=value)})
+line = gpiod.request_lines( CHIP,  config={PWM_LINE_OFFSET: gpiod.LineSettings(direction=Direction.OUTPUT, output_value=value)})
 
 sleep_time = 0.1
 angle = 0
@@ -58,6 +61,7 @@ def print_header():
 
 try:
     while True:
+        print ("Pin to be used: ", PWM_LINE_OFFSET)
         print_header()
         listen_keyboard(on_press = read_key_press,)
 
@@ -77,6 +81,7 @@ try:
 
         if (global_key == "q"):
             done = True
+            break
 
         pulse_width = angle_to_pulse(angle)
         print(f"Angle: {angle}°, Pulse: {pulse_width:.4f}s")
@@ -85,11 +90,11 @@ try:
 
             # Generate a single PWM pulse
             # line.set_value(1)
-            line.set_value(LINE_OFFSET,Value.ACTIVE)
+            line.set_value(PWM_LINE_OFFSET,Value.ACTIVE)
             time.sleep(pulse_width)
 
             # line.set_value(0)
-            line.set_value(LINE_OFFSET,Value.INACTIVE)
+            line.set_value(PWM_LINE_OFFSET,Value.INACTIVE)
             time.sleep(PERIOD - pulse_width)
 
         time.sleep(sleep_time)
@@ -99,5 +104,5 @@ except KeyboardInterrupt:
 
 finally:
     # line.set_value(0)
-    line.set_value(LINE_OFFSET,Value.INACTIVE)
+    line.set_value(PWM_LINE_OFFSET,Value.INACTIVE)
     line.release()
