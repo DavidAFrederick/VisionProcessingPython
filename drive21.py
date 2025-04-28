@@ -8,7 +8,7 @@ from gpiod.line import Direction, Value
 
 # Constants
 CHIP = "/dev/gpiochip0"
-PWM_LINE_OFFSET = 15 # 18 is busy  # GPIO pin number (BCM numbering, e.g., GPIO18)
+PWM_LINE_OFFSET = 21 # 18 is busy  # GPIO pin number (BCM numbering, e.g., GPIO18)
 SW_LINE_OFFSET = 27
 LED_LINE_OFFSET = 14
 
@@ -100,7 +100,7 @@ try:
         pulse_width = angle_to_pulse(angle)
         print(f"Angle: {angle}°, Pulse: {pulse_width:.4f}s")
 
-        for counter in range(10):
+        for counter in range(300):
 
             # Generate a single PWM pulse
             pwm_line.set_value(PWM_LINE_OFFSET,Value.ACTIVE)
@@ -109,7 +109,7 @@ try:
             pwm_line.set_value(PWM_LINE_OFFSET,Value.INACTIVE)
             time.sleep(PERIOD - pulse_width)
 
-        time.sleep(sleep_time)
+        #time.sleep(sleep_time)
 
 except KeyboardInterrupt:
     print("\nExiting...")
