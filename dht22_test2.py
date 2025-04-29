@@ -90,6 +90,72 @@ def read_dht22_data():
         print(data[counter], end="")
     print ("")
 
+#
+#
+#
+# #
+# Len(data):  887
+# 11111100000000011111000000000001111100000000000111110000000000011111000000000001111100000000
+# 00011111000000000001111100000000000111111111111111000000000001111111111111110000000000011111
+# 11111111110000000000001111110000000000011111111111111110000000000001111111111111111000000000
+# 00111111000000000001111111111111111100000000000111111000000000000111110000000000001111110000
+# 00000001111110000000000001111100000000000011111100000000000111111000000000001111110000000000
+# 00111111000000000001111111111111111000000000000111111111111111100000000000111111000000000001
+# 11111000000000000111111111111111100000000000111111000000000000111111111111111100000000000111
+# 11111111111111000000000001111111111111111000000000000111110000000000001111111111111111000000
+# 00000111111000000000000111110000000001111111111111111000000000000111111111111111100000000000
+# 11111100000000000111111111111111111111111111111111111111111
+
+  # zero the variables: number_ones, number_zeros, bit value
+    number_ones = 0
+    number_zeros = 0
+    bit_value = None
+    raw_data_list = []
+    element_value = []
+# loop through each value
+    for index in range (len(data)-1):
+        sample_value = data[index]
+        next_sample_value = data[index+1]
+        # print ("sample_value: ", sample_value, "  next_sample_value: ", next_sample_value)
+        
+        if (sample_value == 1):
+            number_ones = number_ones + 1
+            # print ("1",end="")
+        if (sample_value == 0):
+            number_zeros = number_zeros + 1
+            # print ("0",end="")
+
+        if (sample_value == 0) and (next_sample_value == 1):  # Detect a low to high transistion
+            if (number_ones < 8):
+                bit_value = 0
+            else:
+                bit_value = 1
+        
+            # print (" ")
+            # print ("number_ones: ", number_ones, "  number_zeros: ", number_zeros, "   bit_value: ", bit_value )
+            element_value = [number_ones,number_zeros,bit_value]
+            raw_data_list.append(element_value)
+            # print(raw_data_list)
+            # input ("Pause")
+
+            number_ones = 0
+            number_zeros = 0
+            bit_value = None
+
+    print(raw_data_list)
+    new_data = []
+
+
+    number_of_rows = 0
+    for index in raw_data_list:
+        number_of_rows = number_of_rows + 1
+        new_data.append(index[2])
+    
+    print ("number_of_rows: ", number_of_rows)
+    print (new_data)
+
+    data = new_data
+
     humidity_bits = data[0:8]
     humidity_decimal_bits = data[8:16]
     temperature_bits = data[16:24]
@@ -126,7 +192,8 @@ def read_dht22_data():
 
 ##
 def cleanup_GPIO():
-    dht_line.release()
+    # dht_line.release()
+    pass
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
