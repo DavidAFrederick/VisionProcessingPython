@@ -5,8 +5,6 @@ from sshkeyboard import listen_keyboard, stop_listening
 import gpiod
 from gpiod.line import Direction, Value
 
-
-
         # Define the GPIO pin number in BCM terms
         # This is physical Pin 7 on the left side just above the ground
 MAGNETIC_SENSOR_PIN = 27
@@ -35,6 +33,8 @@ class SecurityCamera():
         self.initialize_chip()
         self.initialize_pwm_motor()
         self.initialize_heading_motor_sensor()
+        self.last_motion_direction_that_was_permitted = None
+
 
     def initialize_chip(self) -> None:
         self.chip = gpiod.Chip(CHIP)
@@ -66,6 +66,9 @@ class SecurityCamera():
         switch_status =  self.switch_line.get_value(SW_LINE_OFFSET)   
         boolean_switch_status =  self.gpio_value_to_boolean(switch_status)
         # print ("switch_status: ", boolean_switch_status, "    Raw: ", self.switch_line.get_value(SW_LINE_OFFSET))
+        #
+        # Limit switch is magnetic switch which connects pin to ground at limit.  Low = at limit
+        # False = not at limit     // True = 
 
         return boolean_switch_status
 
@@ -96,7 +99,8 @@ class SecurityCamera():
         start_time = time.time()
         # print(f"Start:  {start_time}, Duration: {duration}     Speed: {speed},   Pulse: {pulse_width:.4f}s  PERIOD: {PERIOD}")
 
-        while time.time() - start_time < duration:
+        while (time.time() - start_time < duration):
+            print (f"Moving:  {speed}    limit switch ok to move {self.monitor_magnetic_limit_switch()}")
             # Generate a single PWM pulse.  Set high for duration of pulse width
             self.pwm_line.set_value(PWM_LINE_OFFSET,Value.ACTIVE)
             time.sleep(pulse_width)
@@ -107,26 +111,39 @@ class SecurityCamera():
         # print(f"Stop:  {time.time()}")
 
 
-    def turn_heading_motor_until_limit(self, direction : str, speed = 0.5, allowed_duration = 12):
+    def turn_heading_motor_checking_limit(self, direction : str, speed = 0.2, allowed_duration = 1):
      
-        start_time = time.time()
-        run_time = 0
-        limit_switch_valid = True
-        time_not_exceeded  = True
-        duration = 0.5
+        # start_time = time.time()
+        # run_time = 0
+        # self.last_motion_direction_that_was_permitted = None
+        limit_switch_valid  = True
+        print (f"Before:  {self.monitor_magnetic_limit_switch()}  last dir: {self.last_motion_direction_that_was_permitted}  dir: {direction}")
 
-        while (limit_switch_valid) and (time_not_exceeded):
+        if (not self.monitor_magnetic_limit_switch()):  # Limit switch indicates at limit, only allow movement in the away from limit direction
+            if (self.last_motion_direction_that_was_permitted == direction):  # If we're trying to move in the same direction that failed, prevent
+                limit_switch_valid = False
+                print ("Limit switch at limit - Trying to drive into the same direction that failed")
+            else:
+                limit_switch_valid = True
+                print ("Limit switch at limit - OK to move in opposite direction")
+
+        run_time = 0
+        time_not_exceeded  = True
+        duration = 0.25  # was 0.5
+        start_time = time.time()
+
+        while (limit_switch_valid) and (time_not_exceeded):    # Move in multiple small bursts
             if (direction == "CW"):
                 self.turn_motor(speed, duration)  #  speed : float, allowed_duration : float)
 
             if (direction == "CCW"):
                 self.turn_motor(-speed, duration)  #  speed : float, allowed_duration : float)
             
-            # print(f"Duration: {run_time:.2f}  Limit_switch: {self.monitor_magnetic_limit_switch()}  dir: {direction} " )
-
             run_time = time.time() - start_time
-            limit_switch_valid = self.monitor_magnetic_limit_switch()
             time_not_exceeded = run_time < allowed_duration
+            limit_switch_valid = self.monitor_magnetic_limit_switch()
+            print(f"After:: Duration: {run_time:.2f}  Speed {speed:.2f}  Limit_switch: {limit_switch_valid}  dir: {direction} " )
+            self.last_motion_direction_that_was_permitted = direction
 
         if (not limit_switch_valid):
             print ("Motion Limit detected")
@@ -134,7 +151,7 @@ class SecurityCamera():
         if (not time_not_exceeded):
                 print ("Time Complete")
 
-        self.turn_motor(0.0, 0.1) 
+        self.turn_motor(0.0, 0.0)    # Stop the motor
     
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -175,12 +192,12 @@ def main():
         listen_keyboard(on_press = read_key_press,)
 
         if (global_key == "l") or (global_key == "left"):
-            print ("Move Left for 1 second")
-            security_camera.turn_heading_motor_until_limit("CCW", 0.2, 1)
+            # print (f"Move Left for {} second")
+            security_camera.turn_heading_motor_checking_limit("CCW", 0.25, 0.5)
 
         if (global_key == "r") or (global_key == "right"):
-            print ("Move Right for 1 second")
-            security_camera.turn_heading_motor_until_limit("CW", 0.2, 1)
+            # print ("Move Right for 1 second")
+            security_camera.turn_heading_motor_checking_limit("CW", 0.25, 0.5)
 
         if (global_key == "q"):
             done = True

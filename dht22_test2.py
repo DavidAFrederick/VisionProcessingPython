@@ -118,7 +118,7 @@ def read_dht22_data():
 
         if (sample_value == 0) and (next_sample_value == 1):  # Detect a low to high transistion
             if (number_ones < 8):     #### <<<  This value may need to change or be a percentage !!!
-                bit_value = 0
+                bit_value = 0         ### Need to see if processor loading changes the raw data sampling rate
             else:
                 bit_value = 1
         # Create the inner list value then appended it to the outer list.
