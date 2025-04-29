@@ -5,6 +5,18 @@ from gpiod.line import Direction, Value
 # https://libgpiod.readthedocs.io/en/latest/python_api.html
 
 
+#  pip list
+# Package               Version
+# --------------------- ---------
+# gpiod                 2.3.0     <<<  Required for Raspberry Pi 5 due to the new GPIO architecture
+# numpy                 2.2.5
+# opencv-contrib-python 4.11.0.86
+# pip                   23.0.1
+# setuptools            66.1.1
+# sshkeyboard           2.3.1
+
+
+
 # Constants
 CHIP = "/dev/gpiochip0"
 DHT_PIN = 4  # GPIO pin connected to DHT22 data pin
@@ -35,46 +47,21 @@ def read_dht22_data():
     # Configure the  line for input  (Must be released from previous use)
     dht_line = gpiod.request_lines( CHIP,  config={DHT_PIN:  gpiod.LineSettings(direction=Direction.INPUT, bias=gpiod.line.Bias.PULL_UP)})
 
-    if (False):
-        print (dht_line.get_value(DHT_PIN))
-        print (dht_line.get_value(DHT_PIN))
-        print (dht_line.get_value(DHT_PIN))
-        print (dht_line.get_value(DHT_PIN))
-        print (dht_line.get_value(DHT_PIN))
-        print (dht_line.get_value(DHT_PIN))
-
-        for index in range(500):
-            print ( int(dht_line.get_value(DHT_PIN) == Value.INACTIVE), end="" )
-
-        print("")
-
-
     time_now = time.time()
 
-    # Reconfigure as input
-    # dht_line.release()
-    # dht_line = gpiod.request_lines( CHIP,  config={DHT_PIN:  gpiod.LineSettings(direction=Direction.INPUT, bias=gpiod.line.Bias.PULL_UP)})
+    # After we send the send the "start signal", sample the DHT pin as fast as you can for 4 milliseconds
+    # Collect the raw data in a list.
 
     while True:
         current_time = time.time()
-        # if current_time - time_now > 0.0002:     # Stop waiting after 200 uSec - Original
-        if current_time - time_now > 0.004:     # Stop waiting after 200 uSec
+        if current_time - time_now > 0.004:     # Stop waiting after 4 milliSeconds
             break
-        # if (bool(dht_line.get_value(DHT_PIN)) == False):     original
-        if (bool(dht_line.get_value(DHT_PIN) == Value.INACTIVE)):  #  Original
-        # if (bool(dht_line.get_value(DHT_PIN) == Value.ACTIVE)):  Trying inverted data
+        if (bool(dht_line.get_value(DHT_PIN) == Value.INACTIVE)):  
             data.append(0)
         else:
             data.append(1)
     
     start = 0
-    
-    print ("Len(data): ", len(data))
-
-    for counter in range(len(data)):
-        print(data[counter], end="")
-    print ("")
-    # input("Paused")
 
     # find the first  transistion from Low  to High
     for i in range(len(data)):
@@ -82,16 +69,18 @@ def read_dht22_data():
             start = i + 2
             break
     
+    # Cut off unneeded initial data
     data = data[start:]
 
-    print ("Len(data): ", len(data), "    Start: ", start)
+    if (False):    # Print the raw data
+        print ("Len(data): ", len(data), "    Start: ", start)
 
-    for counter in range(len(data)):
-        print(data[counter], end="")
-    print ("")
+        for counter in range(len(data)):
+            print(data[counter], end="")
+        print ("")
 
 #
-#
+#  Example Raw data
 #
 # #
 # Len(data):  887
@@ -106,6 +95,10 @@ def read_dht22_data():
 # 00000111111000000000000111110000000001111111111111111000000000000111111111111111100000000000
 # 11111100000000000111111111111111111111111111111111111111111
 
+  # Now that we have a list of raw data, parse the data breaking at each transition from low(1) to high(1).
+  # We are creating a list of lists
+  # [ [number of ones, number of zeros, bit value], [number of ones, number of zeros, bit value], ]
+
   # zero the variables: number_ones, number_zeros, bit value
     number_ones = 0
     number_zeros = 0
@@ -116,45 +109,38 @@ def read_dht22_data():
     for index in range (len(data)-1):
         sample_value = data[index]
         next_sample_value = data[index+1]
-        # print ("sample_value: ", sample_value, "  next_sample_value: ", next_sample_value)
         
         if (sample_value == 1):
             number_ones = number_ones + 1
-            # print ("1",end="")
+
         if (sample_value == 0):
             number_zeros = number_zeros + 1
-            # print ("0",end="")
 
         if (sample_value == 0) and (next_sample_value == 1):  # Detect a low to high transistion
-            if (number_ones < 8):
+            if (number_ones < 8):     #### <<<  This value may need to change or be a percentage !!!
                 bit_value = 0
             else:
                 bit_value = 1
-        
-            # print (" ")
-            # print ("number_ones: ", number_ones, "  number_zeros: ", number_zeros, "   bit_value: ", bit_value )
+        # Create the inner list value then appended it to the outer list.
             element_value = [number_ones,number_zeros,bit_value]
             raw_data_list.append(element_value)
-            # print(raw_data_list)
-            # input ("Pause")
 
+            #  Clear everthing and repeat
             number_ones = 0
             number_zeros = 0
             bit_value = None
 
-    print(raw_data_list)
+    #  Convert the raw data list of lists into a new parsed list of resultant bits
     new_data = []
-
 
     number_of_rows = 0
     for index in raw_data_list:
         number_of_rows = number_of_rows + 1
         new_data.append(index[2])
     
-    print ("number_of_rows: ", number_of_rows)
-    print (new_data)
-
     data = new_data
+
+    # The following code was pulled from the internet.
 
     humidity_bits = data[0:8]
     humidity_decimal_bits = data[8:16]
@@ -192,7 +178,8 @@ def read_dht22_data():
 
 ##
 def cleanup_GPIO():
-    # dht_line.release()
+    # dht_line.release()    ## Not working
+    chip.close()
     pass
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
