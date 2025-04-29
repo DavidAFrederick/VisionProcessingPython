@@ -1,6 +1,7 @@
 
 import gpiod
 import time
+from datetime import datetime
 from gpiod.line import Direction, Value
 # https://libgpiod.readthedocs.io/en/latest/python_api.html
 
@@ -140,6 +141,13 @@ def read_dht22_data():
     
     data = new_data
 
+    # Troubleshooting - print the  40 bits
+    if (False):
+        for index in range(len(data)):
+            if (data[index]==1): print ("1",end="")
+            if (data[index]==0): print ("0",end="")
+        print("   length:", len(data))
+        print("")
     # The following code was pulled from the internet.
 
     humidity_bits = data[0:8]
@@ -185,11 +193,15 @@ def cleanup_GPIO():
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 try:
-    humidity, temperature = read_dht22_data()
-    if humidity is not None and temperature is not None:
-        print(f"Temperature: {temperature:.1f}°C, Humidity: {humidity:.1f}%")
-    else:
-        print("Data read error")
+    for counter in range (2000):
+        humidity, temperature = read_dht22_data()
+        if humidity is not None and temperature is not None:
+            now = datetime.now()
+            print(f"Time: {now.strftime('%Y-%m-%d %H:%M:%S') } Temperature: {temperature:.1f}°C, Humidity: {humidity:.1f}%")
+        else:
+            # print("Data read error")
+            pass
+        time.sleep(5)
 
 except RuntimeError as error:
     print(error.args[0])

@@ -100,7 +100,7 @@ class SecurityCamera():
         # print(f"Start:  {start_time}, Duration: {duration}     Speed: {speed},   Pulse: {pulse_width:.4f}s  PERIOD: {PERIOD}")
 
         while (time.time() - start_time < duration):
-            print (f"Moving:  {speed}    limit switch ok to move {self.monitor_magnetic_limit_switch()}")
+            # print (f"Moving:  {speed}    limit switch ok to move {self.monitor_magnetic_limit_switch()}")
             # Generate a single PWM pulse.  Set high for duration of pulse width
             self.pwm_line.set_value(PWM_LINE_OFFSET,Value.ACTIVE)
             time.sleep(pulse_width)
@@ -117,7 +117,7 @@ class SecurityCamera():
         # run_time = 0
         # self.last_motion_direction_that_was_permitted = None
         limit_switch_valid  = True
-        print (f"Before:  {self.monitor_magnetic_limit_switch()}  last dir: {self.last_motion_direction_that_was_permitted}  dir: {direction}")
+        # print (f"Before:  {self.monitor_magnetic_limit_switch()}  last dir: {self.last_motion_direction_that_was_permitted}  dir: {direction}")
 
         if (not self.monitor_magnetic_limit_switch()):  # Limit switch indicates at limit, only allow movement in the away from limit direction
             if (self.last_motion_direction_that_was_permitted == direction):  # If we're trying to move in the same direction that failed, prevent
@@ -142,7 +142,7 @@ class SecurityCamera():
             run_time = time.time() - start_time
             time_not_exceeded = run_time < allowed_duration
             limit_switch_valid = self.monitor_magnetic_limit_switch()
-            print(f"After:: Duration: {run_time:.2f}  Speed {speed:.2f}  Limit_switch: {limit_switch_valid}  dir: {direction} " )
+            # print(f"After:: Duration: {run_time:.2f}  Speed {speed:.2f}  Limit_switch: {limit_switch_valid}  dir: {direction} " )
             self.last_motion_direction_that_was_permitted = direction
 
         if (not limit_switch_valid):
@@ -154,7 +154,10 @@ class SecurityCamera():
         self.turn_motor(0.0, 0.0)    # Stop the motor
     
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
+    def read_DHT22_temperature(self):
+        print ("reading temperature")
+        time.sleep(3)
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
     def cleanup_GPIO(self):
 
@@ -183,13 +186,15 @@ def main():
     security_camera = SecurityCamera()
     done = False
 
-
+    # thread1 = threading.Thread(target=security_camera.read_DHT22_temperature(), daemon=True)
+    # thread1 = threading.Thread(target=security_camera.read_DHT22_temperature())
+    # thread1.start()
 
     while (not done):
 
         print_header()
         
-        listen_keyboard(on_press = read_key_press,)
+        listen_keyboard(on_press = read_key_press,sleep=0.1)
 
         if (global_key == "l") or (global_key == "left"):
             # print (f"Move Left for {} second")
@@ -203,6 +208,8 @@ def main():
             done = True
 
     security_camera.cleanup_GPIO()
+    # thread1.join()
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 if __name__ == "__main__":
