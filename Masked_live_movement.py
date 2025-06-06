@@ -7,7 +7,7 @@ import time
 #==(Variables and Constants)==========================================
 first_pass = True
 loop_counter = 0
-number_of_loops = 300
+number_of_loops = 3000
 
 mask_enabled = False
 mask_enabled = True
@@ -74,17 +74,24 @@ def apply_mask_to_image(mask_for_image, camera_image, bypass_this_function = Tru
         _bw_camera_image = cv2.cvtColor(camera_image, cv2.COLOR_BGR2GRAY)
         masked_image = cv2.bitwise_and(mask_for_image, _bw_camera_image, mask=graymask)
 
-        # cv2.imshow("masked", masked_image) 
-        # cv2.waitKey(6000)
-        # cv2.destroyWindow("graymask")
-
         return masked_image
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-def detect_and_box_movement(_frame1, _frame2):
+def detect_and_box_movement(original_image, _frame1, _frame2):
+    # original_frame = _frame1.copy()
     # _diff_frame = cv2.absdiff(_frame1, _frame2)   
     _gray_frame = cv2.absdiff(_frame1, _frame2)   
     # _gray_frame = cv2.cvtColor(_diff_frame, cv2.COLOR_BGR2GRAY)
+
+    # if (loop_counter > 10):
+    #     cv2.imshow("_frame1", _frame1) 
+    #     cv2.waitKey(2000)
+    #     cv2.destroyWindow("_frame1")
+
+    #     cv2.imshow("_frame2", _frame2)     #  Frame 2 has rectangles
+    #     cv2.waitKey(2000)
+    #     cv2.destroyWindow("_frame2")
+
 
     _blur_frame = cv2.GaussianBlur(_gray_frame, (5,5), 0)
     _, _thresh_frame = cv2.threshold(_blur_frame, 20, 255, cv2.THRESH_BINARY)
@@ -105,16 +112,18 @@ def detect_and_box_movement(_frame1, _frame2):
         x_end   = x_start + 4
         y_end   = y_start + 4
 
-        cv2.rectangle (_frame1, (x,y),   (x+w, y+h),     (0, 255, 0), 2)
+        cv2.rectangle (original_image, (x,y),   (x+w, y+h),     (0, 255, 0), 2)
 
-    return _frame1
+    return original_image
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def display_processed_image (image):
     # Create a window named 'image'
-    cv2.namedWindow('WindowName', cv2.WINDOW_AUTOSIZE)
-    cv2.imshow("WindowName", image)       
-    cv2.moveWindow("WindowName", 50, 50)
+    windowName = "Frame: "
+    # cv2.namedWindow('WindowName', cv2.WINDOW_AUTOSIZE)
+    cv2.namedWindow(windowName, cv2.WINDOW_AUTOSIZE)
+    cv2.imshow(windowName, image)       
+    cv2.moveWindow(windowName, 50, 50)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def release_resources(_camera):
@@ -129,21 +138,21 @@ camera = get_camera(height,width)
 
 while camera.isOpened() and (loop_counter < number_of_loops):
 
-    frame1 = get_image_from_camera(camera)
-    masked_gary_image = apply_mask_to_image(graymask, frame1, False)
+    frame1_original_image = get_image_from_camera(camera)
+    masked_grayed_image = apply_mask_to_image(graymask, frame1_original_image, False)
 
     if (first_pass):
-        masked_grayed_frame2 = masked_gary_image
+        masked_grayed_frame2 = masked_grayed_image
         first_pass = False
 
-    highlighted_frame = detect_and_box_movement(masked_gary_image, masked_grayed_frame2)
+    highlighted_frame = detect_and_box_movement(frame1_original_image, masked_grayed_image, masked_grayed_frame2)  # masked_grayed_frame2 has rectangles
 
     display_processed_image(highlighted_frame)
 
-    if (cv2.waitKey(1000) & 0xFF) == ord('q'):
+    if (cv2.waitKey(2) & 0xFF) == ord('q'):
         break
 
-    masked_grayed_frame2 = masked_gary_image
+    masked_grayed_frame2 = masked_grayed_image.copy()
     loop_counter = loop_counter + 1
 
 
