@@ -195,9 +195,10 @@ def cleanup_GPIO():
 try:
     for counter in range (2000):
         humidity, temperature = read_dht22_data()
+        temperature_fahrenheit = 9/5 * temperature + 32
         if humidity is not None and temperature is not None:
             now = datetime.now()
-            print(f"Time: {now.strftime('%Y-%m-%d %H:%M:%S') } Temperature: {temperature:.1f}°C, Humidity: {humidity:.1f}%")
+            print(f"Time: {now.strftime('%Y-%m-%d %H:%M:%S') } Temperature: {temperature_fahrenheit:.1f}°F, Humidity: {humidity:.1f}%")
         else:
             # print("Data read error")
             pass

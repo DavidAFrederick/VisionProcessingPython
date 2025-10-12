@@ -7,7 +7,7 @@ import time
 #==(Variables and Constants)==========================================
 first_pass = True
 loop_counter = 0
-number_of_loops = 3000
+number_of_loops = 200
 
 mask_enabled = False
 mask_enabled = True
@@ -19,15 +19,20 @@ show_movement = True
 height = 1024   # height
 width = 1280  # width
 colordepth = 3
+# list_of_mask_end_points = [[0,600],[450,350],[1280,350],[1280,500],[0,800]]
+list_of_mask_end_points =   [[0,500],[550,450],[1280,450],[1280,700],[0,900]]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-def create_mask_for_blanking(_height, _width, _colordepth):        #  not  sure of the return variable type
+def create_mask_for_blanking(_height, _width, _colordepth, _list_of_mask_end_points):        #  not  sure of the return variable type
     # Create a blank image to be used as a mask
     _blank_image = 255 * np.zeros(shape=(_height, _width, _colordepth), dtype=np.uint8)
 
-    pts = np.array([[0,600],[450,350],[1280,350],[1280,500],[0,800]], np.int32)
+    pts = np.array(_list_of_mask_end_points, np.int32)
+    # pts = np.array([[0,600],[450,350],[1280,350],[1280,500],[0,800]], np.int32)
     pts = pts.reshape((-1,1,2))
+
+    # print(f"pts: {pts}")
     # print (pts)
 
         # [[[   0  500]]
@@ -49,6 +54,58 @@ def create_mask_for_blanking(_height, _width, _colordepth):        #  not  sure 
     # cv2.destroyWindow("graymask")
 
     return _graymask
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def draw_mask_as_line_on_image(image, _list_of_mask_end_points):
+    #  Draw a line on the image using the mask points
+
+    #  _list_of_mask_end_points = 
+    #  [[0,600],[450,350],[1280,350],[1280,500],[0,800]]
+
+    line_end_pts2 = []
+    length_of_list_of_mask_end_points = len(_list_of_mask_end_points)
+
+    for row in range(0,length_of_list_of_mask_end_points):
+        # print (f"Row {row}    _list_of_mask_end_points:  {_list_of_mask_end_points[row]}")
+        point_pair_list = []
+        point_pair_list.append(tuple(_list_of_mask_end_points[row]  ))
+        if (row < (length_of_list_of_mask_end_points-1)):
+            point_pair_list.append(tuple(_list_of_mask_end_points[row+1])) 
+        else:
+            point_pair_list.append(tuple(_list_of_mask_end_points[0])) 
+        line_end_pts2.append(point_pair_list)
+
+
+    # print (f"line_end_pts2  {line_end_pts2}")
+    line_end_pts = line_end_pts2
+    # Target Data:
+        #  [ [    (0, 600), ( 450, 350) ],
+        #    [ ( 450, 350), (1280, 350) ], 
+        #    [ (1280, 350), (1280, 500) ], 
+        #    [ (1280, 500), (   0, 800) ],
+        #    [ (   0, 800), (   0, 600) ] ]
+
+    # line_end_pts =      [ [    (0, 600), ( 450, 350) ],
+    #                       [ ( 450, 350), (1280, 350) ], 
+    #                       [ (1280, 350), (1280, 500) ], 
+    #                       [ (1280, 500), (   0, 800) ],
+    #                       [ (   0, 800), (   0, 600) ] ]
+
+
+    # Define the color of the line (BGR format) and its thickness
+    color = (0, 0, 255)  # red color
+    thickness = 3
+
+    number_of_row_within_line_end_pts = len(line_end_pts)
+    for row in range(0, (number_of_row_within_line_end_pts)):      # Draw the line on the image
+        print (f"Line points:  {line_end_pts[row][0]} {line_end_pts[row][1]}")
+        cv2.line(image, (line_end_pts[row][0]), (line_end_pts[row][1]), color, thickness)
+
+    # # Display the image with the drawn line
+    # cv2.imshow("Image with Line", image)
+    # cv2.waitKey(0)  # Wait indefinitely for a key press
+    # cv2.destroyAllWindows()
+    
+    return image
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def get_camera(_height,_width):
@@ -75,6 +132,7 @@ def apply_mask_to_image(mask_for_image, camera_image, bypass_this_function = Tru
         masked_image = cv2.bitwise_and(mask_for_image, _bw_camera_image, mask=graymask)
 
         return masked_image
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def detect_and_box_movement(original_image, _frame1, _frame2):
@@ -133,7 +191,7 @@ def release_resources(_camera):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 #==(Main)==================================================================================
-graymask = create_mask_for_blanking(height, width, colordepth)
+graymask = create_mask_for_blanking(height, width, colordepth, list_of_mask_end_points)
 camera = get_camera(height,width)
 
 while camera.isOpened() and (loop_counter < number_of_loops):
@@ -146,8 +204,10 @@ while camera.isOpened() and (loop_counter < number_of_loops):
         first_pass = False
 
     highlighted_frame = detect_and_box_movement(frame1_original_image, masked_grayed_image, masked_grayed_frame2)  # masked_grayed_frame2 has rectangles
+    lined_image = draw_mask_as_line_on_image(highlighted_frame,list_of_mask_end_points)
 
-    display_processed_image(highlighted_frame)
+    display_processed_image(lined_image)
+    # display_processed_image(highlighted_frame)
 
     if (cv2.waitKey(2) & 0xFF) == ord('q'):
         break
