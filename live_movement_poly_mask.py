@@ -199,7 +199,7 @@ while cap.isOpened():
 
     loop_counter = loop_counter + 1
 
-    if (loop_counter > 10):
+    if (loop_counter > 100):
         break
 
     # if cv2.waitKey(1) == ord("q"):        # origina
