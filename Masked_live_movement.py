@@ -2,13 +2,17 @@
 #==(Libraries)========================================================
 import cv2
 import numpy as np
-import time
+from datetime import datetime
 
 #==(Variables and Constants)==========================================
+previous_clock_hour = datetime.now().hour
+
+current_minute = datetime.now().minute
+previous_clock_10_minute = 10 * (current_minute // 10)
+
 first_pass = True
 loop_counter = 0
-number_of_loops = 200
-
+number_of_loops = 200000
 mask_enabled = False
 mask_enabled = True
 
@@ -97,13 +101,9 @@ def draw_mask_as_line_on_image(image, _list_of_mask_end_points):
 
     number_of_row_within_line_end_pts = len(line_end_pts)
     for row in range(0, (number_of_row_within_line_end_pts)):      # Draw the line on the image
-        print (f"Line points:  {line_end_pts[row][0]} {line_end_pts[row][1]}")
+        # print (f"Line points:  {line_end_pts[row][0]} {line_end_pts[row][1]}")
         cv2.line(image, (line_end_pts[row][0]), (line_end_pts[row][1]), color, thickness)
 
-    # # Display the image with the drawn line
-    # cv2.imshow("Image with Line", image)
-    # cv2.waitKey(0)  # Wait indefinitely for a key press
-    # cv2.destroyAllWindows()
     
     return image
 
@@ -133,6 +133,20 @@ def apply_mask_to_image(mask_for_image, camera_image, bypass_this_function = Tru
 
         return masked_image
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+def create_current_time_String() -> str:
+    current_date_time = datetime.now()
+    formatted_date_time = current_date_time.strftime("%m_%d_%H_%M_%S")
+    return formatted_date_time
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+def add_time_stamp_to_image(frame1):
+    current_date_time = datetime.now()
+    formatted_date_time = current_date_time.strftime("%m_%d_%H_%M_%S")
+    output_frame = cv2.putText(frame1, formatted_date_time, (10, 20), cv2.FONT_HERSHEY_SIMPLEX,1, (0, 0, 255), 3)
+    return output_frame
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def detect_and_box_movement(original_image, _frame1, _frame2):
@@ -161,7 +175,7 @@ def detect_and_box_movement(original_image, _frame1, _frame2):
         (x, y, w, h) = cv2.boundingRect(contour)
 
         if cv2.contourArea(contour) < thresholdsize:
-            continue
+            continue   #  Skip the lines of code in the iteration 
 
         h2 = int(h/2)
         w2 = int(w/2)
@@ -169,8 +183,17 @@ def detect_and_box_movement(original_image, _frame1, _frame2):
         y_start = y + h2
         x_end   = x_start + 4
         y_end   = y_start + 4
+        small_gap = 5
 
-        cv2.rectangle (original_image, (x,y),   (x+w, y+h),     (0, 255, 0), 2)
+        cv2.line (original_image, (x,y+h+small_gap),   (x+w, y+h+small_gap),     (0, 255, 0), 2)
+        # cv2.rectangle (original_image, (x,y),   (x+w, y+h),     (0, 255, 0), 2)
+
+        # Save the frames that contain movement
+        movement_video_log.write(original_image)
+
+        motion_current_date_time = datetime.now()
+        motion_formatted_date_time = motion_current_date_time.strftime("%m_%d_%H_%M_%S")
+        print (f"Motion Detected at {motion_formatted_date_time} and count: {loop_counter}")
 
     return original_image
 
@@ -187,16 +210,73 @@ def display_processed_image (image):
 def release_resources(_camera):
     cv2.destroyAllWindows()
     _camera.release()
+    movement_video_log.release()
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def  create_reference_to_video_log_file() -> cv2.VideoWriter:
+    # Save the video movement images to a file
+    current_date_time = datetime.now()
+    formatted_date_time = current_date_time.strftime("%m_%d_%H_%M_%S")
+    movement_file_name = "/home/a/vision_movement_files/" + formatted_date_time + "_Movement.avi"
+    print (f"movement_file_name:  {movement_file_name}")
+    fourcc = cv2.VideoWriter_fourcc('X','V','I','D')
+    movement_video_log = cv2.VideoWriter(movement_file_name, fourcc, 5.0, (width,height))
+    return movement_video_log
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def close_reference_to_video_log_file(video_file : cv2.VideoWriter) -> None:
+    # Release the video movement images to a file
+    video_file.release()
+    
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def check_for_new_hour_and_restart_video_log(video_file : cv2.VideoWriter) -> cv2.VideoWriter:
+    global previous_clock_hour, previous_clock_10_minute
+
+    current_datetime = datetime.now()
+    current_hour = current_datetime.hour
+
+    current_minute = current_datetime.minute
+    current_10_minute = 10 * (current_minute // 10)
+
+    # print (f"{previous_clock_10_minute != current_10_minute}   previous_clock_10_minute: {previous_clock_10_minute}    current_10_minute: {current_10_minute}  ")
+    # movement_video_log = video_file
+
+    if (previous_clock_10_minute != current_10_minute):
+    # if (previous_clock_hour != current_hour):
+        # Close the current video log file
+        close_reference_to_video_log_file(video_file)
+
+        # Open a new video log file
+        movement_video_log = create_reference_to_video_log_file()
+
+        print (f"Previous  Hours: {previous_clock_hour}     current_hour: {current_hour} ")
+
+    previous_clock_hour = current_hour
+    previous_clock_10_minute = current_10_minute
+    return movement_video_log
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
 
 #==(Main)==================================================================================
 graymask = create_mask_for_blanking(height, width, colordepth, list_of_mask_end_points)
 camera = get_camera(height,width)
 
+# Save the video movement images to a file
+movement_video_log = create_reference_to_video_log_file()
+print (f"movement_video_log {movement_video_log}")
+
 while camera.isOpened() and (loop_counter < number_of_loops):
 
-    frame1_original_image = get_image_from_camera(camera)
+    #  Check for the top of the hour and start a new Video log file
+
+
+
+    frame0_original_image = get_image_from_camera(camera)
+    frame1_original_image = add_time_stamp_to_image(frame0_original_image)
     masked_grayed_image = apply_mask_to_image(graymask, frame1_original_image, False)
 
     if (first_pass):
@@ -205,6 +285,7 @@ while camera.isOpened() and (loop_counter < number_of_loops):
 
     highlighted_frame = detect_and_box_movement(frame1_original_image, masked_grayed_image, masked_grayed_frame2)  # masked_grayed_frame2 has rectangles
     lined_image = draw_mask_as_line_on_image(highlighted_frame,list_of_mask_end_points)
+    check_for_new_hour_and_restart_video_log(movement_video_log)
 
     display_processed_image(lined_image)
     # display_processed_image(highlighted_frame)
