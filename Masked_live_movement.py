@@ -242,8 +242,8 @@ def check_for_new_hour_and_restart_video_log(video_file : cv2.VideoWriter) -> cv
     # print (f"{previous_clock_10_minute != current_10_minute}   previous_clock_10_minute: {previous_clock_10_minute}    current_10_minute: {current_10_minute}  ")
     movement_video_log = video_file
 
-    if (previous_clock_10_minute != current_10_minute):
-    # if (previous_clock_hour != current_hour):
+    # if (previous_clock_10_minute != current_10_minute):
+    if (previous_clock_hour != current_hour):
         # Close the current video log file
         close_reference_to_video_log_file(video_file)
 
