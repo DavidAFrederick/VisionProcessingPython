@@ -1,6 +1,11 @@
 import os
 import csv
 
+import paramiko
+from scp import SCPClient, SCPException
+import socket
+import sys
+
 class file_transfer_status():
    NEW = 1
    READY_FOR_TRANSFER = 2
@@ -137,6 +142,59 @@ def merge_old_and_new_list_of_files(file_list_data_for_merge, new_file_list_data
     return final_file_list_data
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def transfer_files_to_server( filename_to_be_transferred : str):
+    # Replace with your own connection details
+    hostname = '192.168.1.250'
+    username = 'a'
+    private_key_path = "/home/a/.ssh/id_rsa" 
+    local_directory ='/home/a/vision_movement_files/'
+    # local_file_name = '10_18_22_30_39_Movement.avi'
+    local_file_name = filename_to_be_transferred
+    local_path = local_directory + local_file_name
+    remote_path = 'D:/Tree_video'
+
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    private_key = paramiko.RSAKey.from_private_key_file(private_key_path) 
+
+    def progress(filename, size, sent):
+        sys.stdout.write("%s's progress: %.2f%%   \r" % (filename, float(sent)/float(size)*100))
+        sys.stdout.flush()
+
+    try:
+        # 1. Establish the SSH connection
+        ssh_client.connect(hostname, username=username, pkey=private_key)
+        print("SSH connection established.")
+
+        # 2. Create an SCP client using the SSH transport
+        with SCPClient(ssh_client.get_transport(), progress=progress) as scp:
+            # 3. Transfer the file
+            print(f"Transferring {local_path} to {remote_path}...")
+            scp.put(local_path, remote_path)
+            print("File transfer successful.")
+
+    except paramiko.ssh_exception.AuthenticationException as e:
+        print(f"Authentication failed: {e}")
+    except paramiko.ssh_exception.SSHException as e:
+        print(f"SSH connection error: {e}")
+    except SCPException as e:
+        print(f"SCP transfer failed: {e}")
+    except FileNotFoundError:
+        print(f"Local file not found: {local_path}")
+    except socket.timeout:
+        print("Connection timed out.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+    finally:
+        # 4. Ensure the SSH connection is closed
+        if ssh_client:
+            ssh_client.close()
+            print("SSH connection closed.")
+
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def main():
     file_list_data = get_existing_database_or_create_new_one()
     # print_list_of_file_information_to_screen(file_list_data, "After pulling or creating first DB")
@@ -147,6 +205,7 @@ def main():
     updated_file_list_data = merge_old_and_new_list_of_files(file_list_data, new_file_list_data)
     print_list_of_file_information_to_screen(updated_file_list_data, "Final Merged List")
 
+    transfer_files_to_server('10_18_19_27_11_Movement.avi')
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
