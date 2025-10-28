@@ -6,6 +6,7 @@ from scp import SCPClient, SCPException
 import socket
 import sys
 from datetime import datetime
+import time
 
 
 class file_transfer_status():
@@ -18,6 +19,11 @@ class file_transfer_status():
 video_log_directory_path = "/home/a/vision_movement_files/"  
 file_list_data_file_DB = "file_list_data_file_DB.txt"
 full_db_file_name = video_log_directory_path + file_list_data_file_DB
+
+audit_log_file_path = "/home/a/vision_file_management_audit_logs/"
+audit_log_file_name = "initial_log_file.txt"
+audit_log_full_file_name = ""
+
 file_list_data = []
 new_file_list_data = []
 
@@ -86,9 +92,11 @@ def get_existing_database_or_create_new_one():
     global file_list_data
     try:
         file_list_data = read_list_of_file_information_from_disk()
+        write_to_audit_log_and_close(audit_log_full_file_name, "Data file found.")
 
     except FileNotFoundError:
-        print("Data file not found. - Creating new database")
+        write_to_audit_log_and_close(audit_log_full_file_name, "Data file not found.  Creating new database")
+
 
         file_list_data = create_a_list_of_file_information()
         write_list_of_file_information_to_disk(file_list_data)
@@ -99,6 +107,8 @@ def get_existing_database_or_create_new_one():
 def create_new_database_from_current_list_of_files():
     # global new_file_list_data
     new_file_list_data = create_a_list_of_file_information()
+    write_to_audit_log_and_close(audit_log_full_file_name, "Creating new file list from current file")
+
     return new_file_list_data
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -190,9 +200,13 @@ def transfer_files_to_server( filename_to_be_transferred : str, remote_filename 
         # 2. Create an SCP client using the SSH transport
         with SCPClient(ssh_client.get_transport(), progress=progress) as scp:
             # 3. Transfer the file
-            print(f"Transferring {local_path} to {remote_path_filename}...")
+            # print(f"Transferring {local_path} to {remote_path_filename}...")
+            write_to_audit_log_and_close(audit_log_full_file_name, f"Transferring {local_path} to {remote_path_filename}...")
             scp.put(local_path, remote_path_filename)
-            print("File transfer successful.")
+            # print("File transfer successful.")
+            write_to_audit_log_and_close(audit_log_full_file_name, f"File transfer successful.")
+            # write_to_audit_log_and_close(audit_log_full_file_name, f".")
+            
 
     except paramiko.ssh_exception.AuthenticationException as e:
         print(f"Authentication failed: {e}")
@@ -228,7 +242,8 @@ def delete_files_marked_for_deletion(file_list : list):
         if (entry[2] == file_transfer_status.READY_FOR_DELETION):
             try:
                 os.remove(filename)
-                print(f"File '{filename}' deleted successfully.")
+                # print(f"File '{filename}' deleted successfully.")
+                write_to_audit_log_and_close(audit_log_full_file_name, f"File '{filename}' deleted successfully.")
             except FileNotFoundError:
                 print(f"File '{filename}' does not exist.")
             except OSError as e:
@@ -243,9 +258,10 @@ def delete_database_file(file_list_data_file_DB  : str):
     try:
         os.remove(filename)
 
-        print(f"File '{filename}' deleted successfully.")
+        # print(f"File '{filename}' deleted successfully.")
+        write_to_audit_log_and_close(audit_log_full_file_name, f"File '{filename}' deleted successfully.")
     except FileNotFoundError:
-        print(f"File '{filename}' does not exist.")
+        write_to_audit_log_and_close(audit_log_full_file_name, f"File '{filename}' does not exist.")
     except OSError as e:
         print(f"Error deleting file '{filename}': {e}")
 
@@ -265,7 +281,8 @@ def copy_file_transfer_status_to_server_with_time_stamp_in_filename():
 
     target_file_name = create_current_time_String() + "_" + file_list_data_file_DB
     transfer_files_to_server( file_list_data_file_DB, target_file_name)
-    print(f"Copying current status file to server with name {target_file_name}")
+    # print(f"Copying current status file to server with name {target_file_name}")
+    write_to_audit_log_and_close(audit_log_full_file_name, f"Copying current status file to server with name {target_file_name}")
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -316,6 +333,33 @@ def review_the_age_of_new_files_and_update_to_ready_to_transfer(file_list : list
     # Read the file name and calculate how old the file is. If greater than 130 minutes then mark ready for transfer
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def create_audit_log_file_name_based_on_time() -> str:
+    current_date_time = datetime.now()
+    formatted_date_time = current_date_time.strftime("%m_%d_%H_%M_%S")
+    audit_log_full_file_name = audit_log_file_path + formatted_date_time + "_audit_log.txt"
+    return audit_log_full_file_name
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def write_to_audit_log_and_close(audit_log_full_file_name, comment_to_add):
+    current_date_time = datetime.now()
+    formatted_date_time = current_date_time.strftime("%m_%d_%H_%M_%S")
+    comment = "\n" + formatted_date_time + " " + comment_to_add
+    with open(audit_log_full_file_name, "a") as file:
+        file.write(comment)
+    print (comment)
+
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -323,39 +367,47 @@ def review_the_age_of_new_files_and_update_to_ready_to_transfer(file_list : list
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def main():
+
+    number_of_loops = 5
+    pause_seconds = 30
+    global audit_log_full_file_name
+    audit_log_full_file_name = create_audit_log_file_name_based_on_time()
+
     file_list_data = get_existing_database_or_create_new_one()
     # print_list_of_file_information_to_screen(file_list_data, "After pulling or creating first DB")
 
-    new_file_list_data = create_new_database_from_current_list_of_files()
-    print_list_of_file_information_to_screen(new_file_list_data, "After creating fresh DB")
-    
-    updated_file_list_data = merge_old_and_new_list_of_files(file_list_data, new_file_list_data)
-    print_list_of_file_information_to_screen(updated_file_list_data, "Final Merged List")
+    for counter in range(number_of_loops):
 
-    # - Remove small files
-    updated_file_list_2 = set_status_for_small_files(updated_file_list_data, 6000, file_transfer_status.READY_FOR_DELETION)
-    # print_list_of_file_information_to_screen(updated_file_list_2, "Marked small files")
+        new_file_list_data = create_new_database_from_current_list_of_files()
+        print_list_of_file_information_to_screen(new_file_list_data, "After creating fresh DB")
+        
+        updated_file_list_data = merge_old_and_new_list_of_files(file_list_data, new_file_list_data)
+        print_list_of_file_information_to_screen(updated_file_list_data, "Final Merged List")
 
-    # - Delete files
-    delete_files_marked_for_deletion(updated_file_list_2)
+        # - Remove small files
+        updated_file_list_2 = set_status_for_small_files(updated_file_list_data, 6000, file_transfer_status.READY_FOR_DELETION)
+        # print_list_of_file_information_to_screen(updated_file_list_2, "Marked small files")
 
-    # HOW TO TRANSITION FROM new TO ready to transfer
-    # Read the file name and calculate how old the file is. If greater than 130 minutes then mark ready for transfer
-    updated_file_list_3 = review_the_age_of_new_files_and_update_to_ready_to_transfer(updated_file_list_2)
+        # - Delete files
+        delete_files_marked_for_deletion(updated_file_list_2)
 
-    print_list_of_file_information_to_screen(updated_file_list_3, "Mark ready to tranfer")
+        # HOW TO TRANSITION FROM new TO ready to transfer
+        # Read the file name and calculate how old the file is. If greater than 130 minutes then mark ready for transfer
+        updated_file_list_3 = review_the_age_of_new_files_and_update_to_ready_to_transfer(updated_file_list_2)
 
+        print_list_of_file_information_to_screen(updated_file_list_3, "Mark ready to tranfer")
 
-    # - Copy current files over and update status 
-    updated_file_list_5 = scp_files_marked_for_transfer(updated_file_list_3)
+        # - Copy current files over and update status 
+        updated_file_list_5 = scp_files_marked_for_transfer(updated_file_list_3)
 
+        print_list_of_file_information_to_screen(updated_file_list_5, "After  transferred ")
 
+        copy_file_transfer_status_to_server_with_time_stamp_in_filename()
 
+        
+        write_to_audit_log_and_close(audit_log_full_file_name, f"Pausing {pause_seconds}")
+        time.sleep(pause_seconds)
 
-    print_list_of_file_information_to_screen(updated_file_list_5, "After  transferred ")
-
-
-    copy_file_transfer_status_to_server_with_time_stamp_in_filename()
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 

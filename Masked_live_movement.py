@@ -12,7 +12,7 @@ previous_clock_10_minute = 10 * (current_minute // 10)
 
 first_pass = True
 loop_counter = 0
-number_of_loops = 2000000
+number_of_loops = 200000
 mask_enabled = False
 mask_enabled = True
 
