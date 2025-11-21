@@ -132,37 +132,37 @@ def merge_old_and_new_list_of_files(file_list_data_for_merge, new_file_list_data
     temp_file_list_data2 = []
 
     # Concatinate the two files
-    temp_file_list_data2 = file_list_data_for_merge + new_file_list_data_for_merge
+    temp_file_list_data = file_list_data_for_merge + new_file_list_data_for_merge
 
     # Remove the database file from the list
-    temp_file_list_data = filter_out_the_file_database_file_from_the_list_of_files(temp_file_list_data2)
+    temp_file_list_data2 = filter_out_the_file_database_file_from_the_list_of_files(temp_file_list_data)
     
     # Sort the file list using the file name (first entry in the list)
-    temp_file_list_data.sort(key=lambda filename: filename[0])   
+    temp_file_list_data2.sort(key=lambda filename: filename[0])   
 
     # Compare two adjacent rows, if the filenames are the same, the keep the  one with the higher status
     # [0 = filename,  1 = size in bytes,  2 = status]
-    number_of_entries_in_list = len(temp_file_list_data)
+    number_of_entries_in_list = len(temp_file_list_data2)
     previous_duplicate_entries = False
     for entry in range(0, number_of_entries_in_list-1):
 
         if (previous_duplicate_entries == False):  # skip processing if previous were the same
             print (f"-------------  previous_duplicate_entries {previous_duplicate_entries}")
-            print (f"Current Entry: {entry:3.0f} {temp_file_list_data[entry]}")
-            print (f"Next Entry:    {(entry+1):3.0f} {temp_file_list_data[entry+1]}")
+            print (f"Current Entry: {entry:3.0f} {temp_file_list_data2[entry]}")
+            print (f"Next Entry:    {(entry+1):3.0f} {temp_file_list_data2[entry+1]}")
 
-            if (temp_file_list_data[entry][0] == temp_file_list_data[entry+1][0]):  
+            if (temp_file_list_data2[entry][0] == temp_file_list_data2[entry+1][0]):  
                 
             # if this file and next file have the same name
-                if int(temp_file_list_data[entry][2]) > int(temp_file_list_data[entry+1][2]):   # compare the status codes
-                    final_file_list_data.append(temp_file_list_data[entry])                     # Keep the first file if the SC is higher
+                if int(temp_file_list_data2[entry][2]) > int(temp_file_list_data2[entry+1][2]):   # compare the status codes
+                    final_file_list_data.append(temp_file_list_data2[entry])                     # Keep the first file if the SC is higher
                     print  ("Same Kept first")
                 else:
-                    final_file_list_data.append(temp_file_list_data[entry+1])                   # Keeps the second file if the SC is higher
+                    final_file_list_data.append(temp_file_list_data2[entry+1])                   # Keeps the second file if the SC is higher
                     print ("Same Kept Second")
                 previous_duplicate_entries = True
             else:
-                final_file_list_data.append(temp_file_list_data[entry])   #### ADDED AND BROKE
+                final_file_list_data.append(temp_file_list_data2[entry])   #### ADDED AND BROKE
                 print (f"{entry:3.0f} Different Kept first") 
                 previous_duplicate_entries = False
         else:
@@ -173,7 +173,7 @@ def merge_old_and_new_list_of_files(file_list_data_for_merge, new_file_list_data
     return final_file_list_data
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-def transfer_files_to_server( filename_to_be_transferred : str, remote_filename = ""):
+def transfer_files_to_server( filename_to_be_transferred : str, remote_filename = "") -> bool:
     # Replace with your own connection details
     hostname = '192.168.1.250'
     username = 'a'
@@ -183,6 +183,8 @@ def transfer_files_to_server( filename_to_be_transferred : str, remote_filename 
     local_path = local_file_name
     remote_path = 'D:/Tree_video/'
     remote_path_filename = remote_path + remote_filename
+    transfer_successful_flag = False  #   True if successfull
+
 
     ssh_client = paramiko.SSHClient()
     ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -206,7 +208,7 @@ def transfer_files_to_server( filename_to_be_transferred : str, remote_filename 
             # print("File transfer successful.")
             write_to_audit_log_and_close(audit_log_full_file_name, f"File transfer successful.")
             # write_to_audit_log_and_close(audit_log_full_file_name, f".")
-            
+            transfer_successful_flag = True
 
     except paramiko.ssh_exception.AuthenticationException as e:
         print(f"Authentication failed: {e}")
@@ -226,6 +228,8 @@ def transfer_files_to_server( filename_to_be_transferred : str, remote_filename 
         if ssh_client:
             ssh_client.close()
             print("SSH connection closed.")
+    return transfer_successful_flag
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def set_status_for_small_files(list_to_be_modified : list, size_threshold : int, status_code: int) -> list:
@@ -235,20 +239,26 @@ def set_status_for_small_files(list_to_be_modified : list, size_threshold : int,
     return list_to_be_modified
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-def delete_files_marked_for_deletion(file_list : list):
+def delete_files_marked_for_deletion(file_list : list) -> list:
 
+    print ("READY TO DELETE FILES ================")
     for entry in file_list:
         filename = entry[0]
-        if (entry[2] == file_transfer_status.READY_FOR_DELETION):
+        print (f"Attempting to delete file {filename}  with entry[2]= {entry[2]}  ")
+
+        if (int(entry[2]) == int(file_transfer_status.READY_FOR_DELETION)):
             try:
                 os.remove(filename)
-                # print(f"File '{filename}' deleted successfully.")
+                print(f"File '{filename}' deleted successfully.")
                 write_to_audit_log_and_close(audit_log_full_file_name, f"File '{filename}' deleted successfully.")
+                entry[2] = file_transfer_status.DELETED
+
             except FileNotFoundError:
                 print(f"File '{filename}' does not exist.")
             except OSError as e:
                 print(f"Error deleting file '{filename}': {e}")
         
+    return file_list
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def delete_database_file(file_list_data_file_DB  : str):
@@ -272,8 +282,12 @@ def scp_files_marked_for_transfer(file_list : list) -> list:
         print (f"Entry {entry}")
         filename = entry[0]
         if (entry[2] == file_transfer_status.READY_FOR_TRANSFER):
-            transfer_files_to_server(filename)
-        entry[2] == file_transfer_status.TRANSFERRED
+            if (transfer_files_to_server(filename)):
+                entry[2] = file_transfer_status.TRANSFERRED
+            else:
+                print(f"Transfer of {filename} failed ")
+                write_to_audit_log_and_close(audit_log_full_file_name, f"Transfer Failed: file {filename}")
+
     return file_list
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -309,9 +323,11 @@ def review_the_age_of_new_files_and_update_to_ready_to_transfer(file_list : list
 
     for entry in file_list:
 
+        print (f">>>  entry[0]  {entry[0]}  ")
         # Get just the filename from the full path-file name  # /home/a/vision_movement_files/10_18_14_51_21_Movement.avi
         filename = entry[0].replace(video_log_directory_path, "")
-        # print (f"Entry[0]  {filename}  entry[1]   {entry[1]}   entry[2] {entry[2]}")
+        print (f"Entry[0]  {filename}  entry[1]   {entry[1]}   entry[2] {entry[2]}")
+        print (f">>>  entry[0]  {entry[0]}   0:2:{filename[0:2]}")
         file_month  = int(filename[0:2])
         file_day    = int(filename[3:5])
         file_hour   = int(filename[6:8])
@@ -349,9 +365,31 @@ def write_to_audit_log_and_close(audit_log_full_file_name, comment_to_add):
     print (comment)
 
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def write_file_list_to_audit_log_and_close(audit_log_full_file_name, file_list : list ):
+    current_date_time = datetime.now()
+    formatted_date_time = current_date_time.strftime("%m_%d_%H_%M_%S")
+    comment = "\n" + formatted_date_time + " Current List ========"
+    with open(audit_log_full_file_name, "a") as file:
+        print (comment)
+
+        if (file_list != None):
+            print (f"Number Rows: {len(file_list)}")
+            for row_of_data in file_list:
+                file.write ("\n" + " " + comment)
+                file.write( "\n" + str(row_of_data[0]) + "  " +  str(row_of_data[1]) + "  " + str(row_of_data[2]) )
+        else:
+            file.write("NOTE: The list is empty")
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+def update_status_from_transferred_to_ready_to_delete(file_list : list) -> list:
 
+    for entry in file_list:
+        if (entry[2] == file_transfer_status.TRANSFERRED):
+            entry[2] = file_transfer_status.READY_FOR_DELETION
+    return file_list
+
+        # 120) Review “Transferred [3]”, Mark “Ready for Deletion[4]”
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -368,43 +406,59 @@ def write_to_audit_log_and_close(audit_log_full_file_name, comment_to_add):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def main():
 
-    number_of_loops = 5
-    pause_seconds = 30
+    number_of_loops = 300
+    pause_seconds = 60 * 120
+    file_size_threshold_delete_small_files = 6000
     global audit_log_full_file_name
-    audit_log_full_file_name = create_audit_log_file_name_based_on_time()
+    audit_log_full_file_name = create_audit_log_file_name_based_on_time()  #
+    print (f"audit_log_full_file_name   {audit_log_full_file_name}")
 
-    file_list_data = get_existing_database_or_create_new_one()
+    file_list_data = get_existing_database_or_create_new_one()    #10
     # print_list_of_file_information_to_screen(file_list_data, "After pulling or creating first DB")
 
     for counter in range(number_of_loops):
 
-        new_file_list_data = create_new_database_from_current_list_of_files()
+        new_file_list_data = create_new_database_from_current_list_of_files() #20 + 30
         print_list_of_file_information_to_screen(new_file_list_data, "After creating fresh DB")
         
-        updated_file_list_data = merge_old_and_new_list_of_files(file_list_data, new_file_list_data)
+        updated_file_list_data = merge_old_and_new_list_of_files(file_list_data, new_file_list_data)  #40 + 50
         print_list_of_file_information_to_screen(updated_file_list_data, "Final Merged List")
 
+        write_list_of_file_information_to_disk(updated_file_list_data)  # 60
+
         # - Remove small files
-        updated_file_list_2 = set_status_for_small_files(updated_file_list_data, 6000, file_transfer_status.READY_FOR_DELETION)
-        # print_list_of_file_information_to_screen(updated_file_list_2, "Marked small files")
+        updated_file_list_2 = set_status_for_small_files(updated_file_list_data, file_size_threshold_delete_small_files, file_transfer_status.READY_FOR_DELETION)  #70
+        print_list_of_file_information_to_screen(updated_file_list_2, "Marked small files")
 
         # - Delete files
-        delete_files_marked_for_deletion(updated_file_list_2)
+        updated_file_list_3 = delete_files_marked_for_deletion(updated_file_list_2)   #80
+        print_list_of_file_information_to_screen(updated_file_list_3, "after files deleted")
+
+        write_list_of_file_information_to_disk(updated_file_list_3)  # 90
 
         # HOW TO TRANSITION FROM new TO ready to transfer
         # Read the file name and calculate how old the file is. If greater than 130 minutes then mark ready for transfer
-        updated_file_list_3 = review_the_age_of_new_files_and_update_to_ready_to_transfer(updated_file_list_2)
+        updated_file_list_4 = review_the_age_of_new_files_and_update_to_ready_to_transfer(updated_file_list_3)   #100
 
-        print_list_of_file_information_to_screen(updated_file_list_3, "Mark ready to tranfer")
+        print_list_of_file_information_to_screen(updated_file_list_4, "Mark ready to transfer")
 
         # - Copy current files over and update status 
-        updated_file_list_5 = scp_files_marked_for_transfer(updated_file_list_3)
+        updated_file_list_5 = scp_files_marked_for_transfer(updated_file_list_4)   #110
 
-        print_list_of_file_information_to_screen(updated_file_list_5, "After  transferred ")
+        # 120) Review “Transferred [3]”, Mark “Ready for Deletion[4]”
+        updated_file_list_6 = update_status_from_transferred_to_ready_to_delete(updated_file_list_5)
+
+        print_list_of_file_information_to_screen(updated_file_list_6, "After  transferred ")
+
+        delete_files_marked_for_deletion(updated_file_list_6)
 
         copy_file_transfer_status_to_server_with_time_stamp_in_filename()
 
+        write_list_of_file_information_to_disk(updated_file_list_6)  # 130
         
+        write_file_list_to_audit_log_and_close(audit_log_full_file_name, updated_file_list_6 )
+
+
         write_to_audit_log_and_close(audit_log_full_file_name, f"Pausing {pause_seconds}")
         time.sleep(pause_seconds)
 

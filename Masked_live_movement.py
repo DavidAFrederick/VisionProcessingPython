@@ -12,11 +12,11 @@ previous_clock_10_minute = 10 * (current_minute // 10)
 
 first_pass = True
 loop_counter = 0
-number_of_loops = 200000
-mask_enabled = False
+number_of_loops = 2000000
+# mask_enabled = False
 mask_enabled = True
 
-show_movement = False
+# show_movement = False
 show_movement = True
 
 # Camera default size 1024, 1280
@@ -149,7 +149,7 @@ def add_time_stamp_to_image(frame1):
     return output_frame
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-def detect_and_box_movement(original_image, _frame1, _frame2):
+def detect_and_box_movement(original_image, _frame1, _frame2, video_log_file):
     # original_frame = _frame1.copy()
     # _diff_frame = cv2.absdiff(_frame1, _frame2)   
     _gray_frame = cv2.absdiff(_frame1, _frame2)   
@@ -189,7 +189,8 @@ def detect_and_box_movement(original_image, _frame1, _frame2):
         # cv2.rectangle (original_image, (x,y),   (x+w, y+h),     (0, 255, 0), 2)
 
         # Save the frames that contain movement
-        movement_video_log.write(original_image)
+        # movement_video_log.write(original_image)
+        video_log_file.write(original_image)
 
         motion_current_date_time = datetime.now()
         motion_formatted_date_time = motion_current_date_time.strftime("%m_%d_%H_%M_%S")
@@ -223,6 +224,8 @@ def  create_reference_to_video_log_file() -> cv2.VideoWriter:
     movement_video_log = cv2.VideoWriter(movement_file_name, fourcc, 5.0, (width,height))
     return movement_video_log
 
+    # returns a full path to a file where video will be written
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def close_reference_to_video_log_file(video_file : cv2.VideoWriter) -> None:
@@ -231,13 +234,15 @@ def close_reference_to_video_log_file(video_file : cv2.VideoWriter) -> None:
     
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def check_for_new_hour_and_restart_video_log(video_file : cv2.VideoWriter) -> cv2.VideoWriter:
+        # Input parameter is a full path to a file where video will be written
     global previous_clock_hour, previous_clock_10_minute
 
     current_datetime = datetime.now()
     current_hour = current_datetime.hour
-
     current_minute = current_datetime.minute
-    current_10_minute = 10 * (current_minute // 10)
+
+    current_10_minute = 10 * (current_minute // 10)  
+    # (double forward slash): Floor division, which returns the quotient rounded down to the nearest whole number.
 
     # print (f"{previous_clock_10_minute != current_10_minute}   previous_clock_10_minute: {previous_clock_10_minute}    current_10_minute: {current_10_minute}  ")
     movement_video_log = video_file
@@ -250,7 +255,7 @@ def check_for_new_hour_and_restart_video_log(video_file : cv2.VideoWriter) -> cv
         # Open a new video log file
         movement_video_log = create_reference_to_video_log_file()
 
-        print (f"Previous  Hours: {previous_clock_hour}     current_hour: {current_hour} ")
+        print (f"Creating new Log File - Previous  Hours: {previous_clock_hour}     current_hour: {current_hour} ")
 
     previous_clock_hour = current_hour
     previous_clock_10_minute = current_10_minute
@@ -273,8 +278,6 @@ while camera.isOpened() and (loop_counter < number_of_loops):
 
     #  Check for the top of the hour and start a new Video log file
 
-
-
     frame0_original_image = get_image_from_camera(camera)
     frame1_original_image = add_time_stamp_to_image(frame0_original_image)
     masked_grayed_image = apply_mask_to_image(graymask, frame1_original_image, False)
@@ -283,9 +286,13 @@ while camera.isOpened() and (loop_counter < number_of_loops):
         masked_grayed_frame2 = masked_grayed_image
         first_pass = False
 
-    highlighted_frame = detect_and_box_movement(frame1_original_image, masked_grayed_image, masked_grayed_frame2)  # masked_grayed_frame2 has rectangles
+    highlighted_frame = detect_and_box_movement(frame1_original_image, masked_grayed_image, masked_grayed_frame2, movement_video_log)  
+    # masked_grayed_frame2 has rectangles
+    
     lined_image = draw_mask_as_line_on_image(highlighted_frame,list_of_mask_end_points)
-    check_for_new_hour_and_restart_video_log(movement_video_log)
+    new_movement_video_log = check_for_new_hour_and_restart_video_log(movement_video_log)
+    # ERROR: Above call returns new video file.  (Need to use)
+    movement_video_log = new_movement_video_log
 
     display_processed_image(lined_image)
     # display_processed_image(highlighted_frame)
@@ -296,15 +303,7 @@ while camera.isOpened() and (loop_counter < number_of_loops):
     masked_grayed_frame2 = masked_grayed_image.copy()
     loop_counter = loop_counter + 1
 
-
 release_resources(camera)
 
 
 #==(End of Main)============================================================================
-
-
-
-
-
-
-
